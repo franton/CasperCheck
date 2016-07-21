@@ -9,7 +9,7 @@ As written currently, CasperCheck has several components that work together:
 
 1. A Casper policy that runs when called by a manual trigger.
 
-2. A zipped Casper QuickAdd installer package, available for download from a web server.
+2. A Casper QuickAdd installer package already deployed to the computer.
 
 3. A LaunchDaemon, which triggers the CasperCheck script to run
 
@@ -72,13 +72,6 @@ sh /Library/Scripts/caspercheck.sh
  </plist>
 
 
-CasperCheck script
--------------------
-
-The current version of the CasperCheck script is available from the following location:
-
-https://github.com/rtrouton/CasperCheck/blob/master/script/caspercheck.sh
-
 
 The CasperCheck script includes functions to do the following:
 
@@ -86,21 +79,17 @@ The CasperCheck script includes functions to do the following:
 
 2. Verify that it can resolve the JSS's server address and that the appropriate network port is accepting connections.
 
-3. As needed, download and store new QuickAdd installers from the web server where the zipped QuickAdds are posted to.
+3. Check to see if the JAMF binary is present. If not, reinstall using the QuickAdd installer stored on the Mac.
 
-4. Check to see if the JAMF binary is present. If not, reinstall using the QuickAdd installer stored on the Mac.
+4. If the JAMF binary is present, verify that it has the proper permissions and automatically fix any permissions that are incorrect.
 
-5. If the JAMF binary is present, verify that it has the proper permissions and automatically fix any permissions that are incorrect.
+5. Check to see if the Mac can communicate with the JSS server using the "jamf checkJSSConnection" command. If not, reinstall using the QuickAdd installer stored on the Mac.
 
-6. Check to see if the Mac can communicate with the JSS server using the "jamf checkJSSConnection" command. If not, reinstall using the QuickAdd installer stored on the Mac.
-
-7. Check to see if the Mac can run a specified policy using a manual trigger. If not, reinstall using the QuickAdd installer stored on the Mac.
+6. Check to see if the Mac can run a specified policy using a manual trigger. If not, reinstall using the QuickAdd installer stored on the Mac.
 
 Assuming that the Casper Online policy has been set up described above on the JSS, the variables below need to be set up on the CasperCheck script to set the following variables before using it in your environment:
 
 fileURL - For the fileURL variable, put the complete address of the zipped Casper QuickAdd installer package.
-jss_server_address - put the complete fully qualified domain name address of your Casper server.
-jss_server_port - put the appropriate port number for your Casper server. This is usually 8443 or 443; change as appropriate.
 log_location - put the preferred location of the log file for this script. If you don't have a preference, using the default setting of /var/log/caspercheck.log should be fine.
 NOTE: Use caution when editing the functions or variables below the User-editable variables section of the script.
 
