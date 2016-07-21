@@ -1,19 +1,12 @@
 #!/bin/bash
 
+jss_server_address=$( defaults read /Library/Preferences/com.jamfsoftware.jamf.plist jss_url | awk -F':' '{print $1":"$2}' )
+
+jss_server_port=$( defaults read /Library/Preferences/com.jamfsoftware.jamf.plist jss_url | cut -d":" -f3 | tr -d / )
+
 #
 # User-editable variables
 #
-
-# For the jss_server_address variable, put the complete 
-# fully qualified domain name address of your Casper server
-
-jss_server_address="address.here"
-
-# For the jss_server_address variable, put the port number 
-# of your Casper server. This is usually 8443; change as
-# appropriate.
-
-jss_server_port="8443"
 
 # For the log_location variable, put the preferred 
 # location of the log file for this script. If you 
