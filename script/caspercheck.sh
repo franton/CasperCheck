@@ -4,15 +4,10 @@
 # User-editable variables
 #
 
-# For the fileURL variable, put the complete address 
-# of the zipped Casper QuickAdd installer package
-
-fileURL="http://server_name_here.domain.com/quickadd_name_goes_here.zip"
-
 # For the jss_server_address variable, put the complete 
 # fully qualified domain name address of your Casper server
 
-jss_server_address="server_name_here.domain.com"
+jss_server_address="address.here"
 
 # For the jss_server_address variable, put the port number 
 # of your Casper server. This is usually 8443; change as
@@ -25,17 +20,15 @@ jss_server_port="8443"
 # don't have a preference, using the default setting
 # should be fine.
 
-log_location="/var/log/caspercheck.log"
+log_location="/var/log/organisationname/caspercheck.log"
 
 #
 # The variables below this line should not need to be edited.
 # Use caution if doing so. 
 #
 
-quickadd_dir="/var/root/quickadd"
-quickadd_zip="/tmp/quickadd.zip"
+quickadd_dir="/usr/local/org/misc/quickadd"
 quickadd_installer="$quickadd_dir/casper.pkg"
-quickadd_timestamp="$quickadd_dir/quickadd_timestamp"
 
 #
 # Begin function section
@@ -72,118 +65,9 @@ CheckForNetwork(){
     fi
 }
 
-CheckSiteNetwork (){
-
-  #  CheckSiteNetwork function adapted from Facebook's check_corp function script.
-  #  check_corp script available on Facebook's IT-CPE Github repo:
-  #
-  # check_corp:
-  #   This script verifies a system is on the corporate network.
-  #   Input: CORP_URL= set this to a hostname on your corp network
-  #   Optional ($1) contains a parameter that is used for testing.
-  #   Output: Returns a check_corp variable that will return "True" if on 
-  #   corp network, "False" otherwise.
-  #   If a parameter is passed ($1), the check_corp variable will return it
-  #   This is useful for testing scripts where you want to force check_corp
-  #   to be either "True" or "False"
-  # USAGE: 
-  #   check_corp        # No parameter passed
-  #   check_corp "True"  # Parameter of "True" is passed and returned
-  
-
-  site_network="False"
-  ping=`host -W .5 $jss_server_address`
-
-  # If the ping fails - site_network="False"
-  [[ $? -eq 0 ]] && site_network="True"
-
-  # Check if we are using a test
-  [[ -n "$1" ]] && site_network="$1"
-}
-
-#
-# The update_quickadd function checks the timestamp of the fileURL variable and compares it against a locally
-# cached timestamp. If the hosted file's timestamp is newer, then the Casper 
-# QuickAdd installer gets downloaded and extracted into the target directory.
-#
-# This function uses the myCurl function defined at the top of the script.
-#
-
-update_quickadd () {
-
-    # Get modification date of fileURL
-    
-    modDate=$(myCurl --head $fileURL 2>/dev/null | awk -F': ' '/Last-Modified/{print $2}')
-
-    # Downloading Casper agent installer
-    
-    ScriptLogging "Downloading Casper agent installer from server."
-    
-    myCurl --output "$quickadd_zip" $fileURL
-    
-    # Check to make sure download occurred
-    
-    if [[ ! -f "$quickadd_zip" ]]; then
-        ScriptLogging "$quickadd_zip not found. Exiting CasperCheck."
-        ScriptLogging "======== CasperCheck Finished ========"
-        exit 0
-    fi
-    
-    # Verify that the downloaded zip file is a valid zip archive.
-
-    zipfile_chk=`/usr/bin/unzip -tq $quickadd_zip > /dev/null; echo $?`
-
-    if [ "$zipfile_chk" -eq 0 ]; then
-       ScriptLogging "Downloaded zip file appears to be a valid zip archive. Proceeding."
-    else
-       ScriptLogging "Downloaded zip file appears to be corrupted. Exiting CasperCheck."
-       ScriptLogging "======== CasperCheck Finished ========"
-       rm "$quickadd_zip"
-       exit 0
-    fi
-    
-    # Create the destination directory if needed
-    
-    if [[ ! -d "$quickadd_dir" ]]; then
-        mkdir "$quickadd_dir"
-    fi
-    
-    # If needed, remove existing files from the destination directory
-    
-    if [[ -d "$quickadd_dir" ]]; then
-        /bin/rm -rf "$quickadd_dir"/*
-    fi
-    
-    # Unzip the Casper agent install into the destination directory
-    # and remove the __MACOSX directory, which is created as part of
-    # the uncompression process from the destination directory.
-    
-    /usr/bin/unzip "$quickadd_zip" -d "$quickadd_dir";/bin/rm -rf "$quickadd_dir"/__MACOSX
-    
-    # Rename newly-downloaded installer to be casper.pkg
-    
-    mv "$(/usr/bin/find $quickadd_dir -maxdepth 1 \( -iname \*\.pkg -o -iname \*\.mpkg \))" "$quickadd_installer"
-    
-    # Remove downloaded zip file
-    if [[ -f "$quickadd_zip" ]]; then
-        /bin/rm -rf "$quickadd_zip"
-    fi
-    
-    # Add the quickadd_timestamp file to the destination directory. 
-    # This file is used to help verify if the current Casper agent 
-    # installer is already cached on the machine.
-    
-    if [[ ! -f "$quickadd_timestamp" ]]; then
-        echo $modDate > "$quickadd_timestamp"
-    fi   
-    
-    
-}
-
 CheckTomcat (){
  
 # Verifies that the JSS's Tomcat service is responding via its assigned port.
-
 
 tomcat_chk=`nc -z -w 5 $jss_server_address $jss_server_port > /dev/null; echo $?`
 
@@ -193,28 +77,6 @@ else
        ScriptLogging "Machine cannot connect to $jss_server_address over port $jss_server_port. Exiting CasperCheck."
        ScriptLogging "======== CasperCheck Finished ========"
        exit 0
-fi
-
-}
-
-CheckInstaller (){
- 
-# Compare timestamps and update the Casper agent
-# installer if needed.
-
-    modDate=$(myCurl --head $fileURL 2>/dev/null | awk -F': ' '/Last-Modified/{print $2}')
-
-if [[ -f "$quickadd_timestamp" ]]; then
-    cachedDate=$(cat "$quickadd_timestamp")
-    
-    
-    if [[ "$cachedDate" == "$modDate" ]]; then
-        ScriptLogging "Current Casper installer already cached."
-    else
-        update_quickadd
-    fi
-else
-    update_quickadd
 fi
 
 }
@@ -241,23 +103,10 @@ jamf_binary=`/usr/bin/which jamf`
 }
 
 InstallCasper () {
-
- # Check for the cached Casper QuickAdd installer and run it
- # to fix problems with Casper being able to communicate with
- # the Casper server
  
- if [[ ! -e "$quickadd_installer" ]] ; then
-    ScriptLogging "Casper installer is missing. Downloading."
-    /bin/rm -rf "$quickadd_timestamp"
-    update_quickadd
- fi
- 
-  if [[ -e "$quickadd_installer" ]] ; then
-    ScriptLogging "Casper installer is present. Installing."
+    ScriptLogging "Installing Casper quickadd package."
     /usr/sbin/installer -dumplog -verbose -pkg "$quickadd_installer" -target /
-    ScriptLogging "Casper agent has been installed."
- fi
- 
+    ScriptLogging "Casper agent has been installed." 
 
 }
 
@@ -266,8 +115,6 @@ CheckCasper () {
   #  CheckCasper function adapted from Facebook's jamf_verify.sh script.
   #  jamf_verify script available on Facebook's IT-CPE Github repo:
   #  Link: https://github.com/facebook/IT-CPE
-
-
 
   # Checking for the jamf binary
   CheckBinary
@@ -288,7 +135,6 @@ CheckCasper () {
   # of anything greater than zero, the communication check has failed.
   # If the communication check fails, reinstall the Casper agent using
   # the cached installer.
-
 
   jss_comm_chk=`$jamf_binary checkJSSConnection > /dev/null; echo $?`
 
@@ -334,7 +180,6 @@ CheckCasper () {
     InstallCasper
     CheckBinary
   fi
-
 
 }
 
@@ -390,19 +235,9 @@ if [[ "${NETWORKUP}" == "-YES-" ]]; then
   # Sleeping for 120 seconds to give WiFi time to come online.
   ScriptLogging "Pausing for two minutes to give WiFi and DNS time to come online."
   sleep 120
-  CheckSiteNetwork
 
-  if [[ "$site_network" == "False" ]]; then
-    ScriptLogging "Unable to verify access to site network. Exiting CasperCheck."
-  fi 
-
-
-  if [[ "$site_network" == "True" ]]; then
-    ScriptLogging "Access to site network verified"
-    CheckTomcat
-    CheckInstaller
-    CheckCasper
-  fi
+  CheckTomcat
+  CheckCasper
 
 fi
 
